@@ -10,14 +10,25 @@ class AWSMissingSecretAccessKeyException(ValueError):
     pass
 
 
-class AWSMissingSessionTokenException(ValueError):
-    """Raised when AWS_SESSION_TOKEN not found in the environment variables."""
+class AWSMissingRegionException(ValueError):
+    """Raised when AWS_REGION not found in the environment variables."""
 
     pass
 
 
-class AWSMissingRegionException(ValueError):
-    """Raised when AWS_REGION not found in the environment variables."""
+class AWSMissingRoleARNException(ValueError):
+    """Raised when AWS_ROLE_ARN is not provided."""
+
+    pass
+
+class AWSMissingRoleSessionNameException(ValueError):
+    """Raised when AWS_ROLE_SESSION_NAME is not provided."""
+
+    pass
+
+
+class AWSMissingSessionTokenException(ValueError):
+    """Raised when AWS_SESSION_TOKEN not found in the environment variables."""
 
     pass
 

@@ -8,24 +8,60 @@ class Config:
     def __init__(
         self,
         aws_prefix: str = "",
-        namespace: str = None,
+        secretsmanager_prefix: str = None,
         not_found_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> None:
         aws_access_key_id = os.environ.get(f"{aws_prefix}AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = os.environ.get(f"{aws_prefix}AWS_SECRET_ACCESS_KEY")
+        region_name = os.environ.get(f"{aws_prefix}AWS_REGION")
+
         if aws_access_key_id is None:
             raise exceptions.AWSMissingAccessKeyIdException
 
-        aws_secret_access_key = os.environ.get(f"{aws_prefix}AWS_SECRET_ACCESS_KEY")
         if aws_secret_access_key is None:
             raise exceptions.AWSMissingSecretAccessKeyException
 
-        aws_session_token = os.environ.get(f"{aws_prefix}AWS_SESSION_TOKEN")
-        if aws_session_token is None:
-            raise exceptions.AWSMissingSessionTokenException
-
-        region_name = os.environ.get(f"{aws_prefix}AWS_REGION")
         if region_name is None:
             raise exceptions.AWSMissingRegionException
+
+        # AWS_SESSION_TOKEN is optional, if not provided, assume role will be used.
+        aws_session_token = os.environ.get(f"{aws_prefix}AWS_SESSION_TOKEN")
+
+        # If AWS_SESSION_TOKEN is not provided, assume role.
+        if aws_session_token is None:
+            aws_role_arn = os.environ.get(f"{aws_prefix}AWS_ROLE_ARN")
+            aws_role_session_name = os.environ.get(f"{aws_prefix}AWS_ROLE_SESSION_NAME")
+
+            if aws_role_arn is None:
+                raise exceptions.AWSMissingRoleARNException
+
+            if aws_role_session_name is None:
+                raise exceptions.AWSMissingRoleSessionNameException
+
+            self.aws_role_arn = aws_role_arn
+            self.aws_role_session_name = aws_role_session_name
+
+            session = boto3.Session(
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+            )
+
+            sts = session.client("sts")
+            assumed_role_object = sts.assume_role(
+                RoleArn=self.aws_role_arn,
+                RoleSessionName=self.aws_role_session_name,
+            )
+            credentials = assumed_role_object.get("Credentials")
+
+            # Override the credentials with the assumed role credentials.
+            aws_access_key_id = credentials.get("AccessKeyId")
+            aws_secret_access_key = credentials.get("SecretAccessKey")
+            aws_session_token = credentials.get("SessionToken")
+
+
+        # session token must be set now.
+        if aws_session_token is None:
+            raise exceptions.AWSMissingSessionTokenException
 
         session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
@@ -35,14 +71,14 @@ class Config:
         )
 
         self.session = session
-        self.namespace = namespace
         self.not_found_fn = not_found_fn
+        self.secretsmanager_prefix = secretsmanager_prefix
         self.secretsmanager = self.session.client("secretsmanager")
 
     # Secrets Manager
     def get_key(self, secret_id) -> str:
-        if self.namespace is not None:
-            secret_id = f"{self.namespace}/{secret_id}"
+        if self.secretsmanager_prefix is not None:
+            secret_id = f"{self.secretsmanager_prefix}/{secret_id}"
         return secret_id
 
     def get_secret(self, secret_id: str) -> str:
