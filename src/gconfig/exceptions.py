@@ -21,6 +21,7 @@ class AWSMissingRoleARNException(ValueError):
 
     pass
 
+
 class AWSMissingRoleSessionNameException(ValueError):
     """Raised when AWS_ROLE_SESSION_NAME is not provided."""
 

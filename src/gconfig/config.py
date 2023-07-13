@@ -58,7 +58,6 @@ class Config:
             aws_secret_access_key = credentials.get("SecretAccessKey")
             aws_session_token = credentials.get("SessionToken")
 
-
         # session token must be set now.
         if aws_session_token is None:
             raise exceptions.AWSMissingSessionTokenException
@@ -133,7 +132,12 @@ class Config:
         default: int = None,
     ) -> int:
         return int(
-            self.get(env=env, secretsmanager=secretsmanager, required=required, default=default),
+            self.get(
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+            ),
         )
 
     def float(
@@ -144,7 +148,12 @@ class Config:
         default: float = None,
     ) -> float:
         return float(
-            self.get(env=env, secretsmanager=secretsmanager, required=required, default=default)
+            self.get(
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+            )
         )
 
     def boolean(
@@ -155,5 +164,11 @@ class Config:
         default: bool = None,
     ) -> bool:
         return bool(
-            self.get(env=env, secretsmanager=secretsmanager, required=required, default=default).lower() == "true"
+            self.get(
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+            ).lower()
+            == "true"
         )
