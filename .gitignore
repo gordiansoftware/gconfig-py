@@ -23,3 +23,9 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+
+# Editors
+.idea
+.vscode
+*.swp
+.editorconfig
