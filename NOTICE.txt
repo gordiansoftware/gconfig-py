@@ -1,0 +1,8 @@
+GConfig for Python
+Copyright 2023 Gordian Software Inc.
+
+This product includes software developed by
+Gordian Software Inc. (https://www.gordiansoftware.com/).
+
+This product includes software from the boto project.
+https://github.com/boto
