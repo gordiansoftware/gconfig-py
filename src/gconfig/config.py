@@ -105,8 +105,8 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: any = None,
-    ) -> str:
-        secret = os.environ.get(env)
+    ) -> Optional[str]:
+        secret = os.environ.get(env) if env is not None else None
 
         if secret is None and secretsmanager is not None:
             try:
@@ -114,7 +114,7 @@ class Config:
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     secret = None
-                else:
+                elif required and default is None:
                     raise Exception("Secrets manager error: {}".format(e))
 
         if secret is None and default is not None:
@@ -134,7 +134,7 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: str = None,
-    ) -> str:
+    ) -> Optional[str]:
         return self.get(
             env=env, secretsmanager=secretsmanager, required=required, default=default
         )
@@ -145,15 +145,14 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: int = None,
-    ) -> int:
-        return int(
-            self.get(
-                env=env,
-                secretsmanager=secretsmanager,
-                required=required,
-                default=default,
-            ),
+    ) -> Optional[int]:
+        val = self.get(
+            env=env,
+            secretsmanager=secretsmanager,
+            required=required,
+            default=default,
         )
+        return int(val) if val is not None else None
 
     def float(
         self,
@@ -161,15 +160,14 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: float = None,
-    ) -> float:
-        return float(
-            self.get(
-                env=env,
-                secretsmanager=secretsmanager,
-                required=required,
-                default=default,
-            )
+    ) -> Optional[float]:
+        val = self.get(
+            env=env,
+            secretsmanager=secretsmanager,
+            required=required,
+            default=default,
         )
+        return float(val) if val is not None else None
 
     def boolean(
         self,
@@ -177,13 +175,11 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: bool = None,
-    ) -> bool:
-        return bool(
-            self.get(
-                env=env,
-                secretsmanager=secretsmanager,
-                required=required,
-                default=default,
-            ).lower()
-            == "true"
-        )
+    ) -> Optional[bool]:
+        val = self.get(
+            env=env,
+            secretsmanager=secretsmanager,
+            required=required,
+            default=default,
+        ).lower()
+        return val == "true" if val is not None else None
