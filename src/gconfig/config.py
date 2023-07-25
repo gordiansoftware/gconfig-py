@@ -105,7 +105,7 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: any = None,
-    ) -> str:
+    ) -> Optional[str]:
         secret = os.environ.get(env) if env is not None else None
 
         if secret is None and secretsmanager is not None:
