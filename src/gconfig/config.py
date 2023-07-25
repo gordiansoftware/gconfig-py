@@ -114,8 +114,13 @@ class Config:
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     secret = None
-                elif required and default is None:
-                    raise Exception("Secrets manager error: {}".format(e))
+                else:
+                    raise e
+            except Exception as e:
+                if not required or default is not None:
+                    secret = default
+                else:
+                    raise e
 
         if secret is None and default is not None:
             secret = default
