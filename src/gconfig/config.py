@@ -186,5 +186,9 @@ class Config:
             secretsmanager=secretsmanager,
             required=required,
             default=default,
-        ).lower()
-        return val == "true" if val is not None else None
+        )
+        return (
+            (val if type(val) == bool else val.lower() == "true")
+            if val is not None
+            else None
+        )
