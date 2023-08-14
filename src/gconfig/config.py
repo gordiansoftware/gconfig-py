@@ -2,7 +2,7 @@ import os, boto3
 from typing import Optional, Callable, Dict
 from botocore.exceptions import ClientError
 
-from . import exceptions
+from . import exceptions, cache
 
 
 class Config:
@@ -16,9 +16,10 @@ class Config:
         self.secretsmanager_client = None
         self.secretsmanager_prefix = secretsmanager_prefix
         self.not_found_fn = not_found_fn
+        self.cache = cache.Cache()
 
     # Secrets Manager
-    def get_secretsmanager_client(self) -> boto3.client:
+    def get_secretsmanager(self) -> boto3.client:
         if self.secretsmanager_client is None:
             aws_access_key_id = os.environ.get(f"{self.aws_prefix}AWS_ACCESS_KEY_ID")
             aws_secret_access_key = os.environ.get(
@@ -87,15 +88,15 @@ class Config:
 
         return self.secretsmanager_client
 
-    def get_key(self, secret_id) -> str:
+    def get_secretsmanager_key(self, secret_id) -> str:
         if self.secretsmanager_prefix is not None:
             secret_id = f"{self.secretsmanager_prefix}/{secret_id}"
         return secret_id
 
-    def get_secret(self, secret_id: str) -> str:
-        secretsmanager_client = self.get_secretsmanager_client()
+    def get_secretsmanager_secret(self, secret_id: str) -> str:
+        secretsmanager_client = self.get_secretsmanager()
         response = secretsmanager_client.get_secret_value(
-            SecretId=self.get_key(secret_id)
+            SecretId=self.get_secretsmanager_key(secret_id)
         )
         return response.get("SecretString")
 
@@ -103,14 +104,20 @@ class Config:
         self,
         env: str = None,
         secretsmanager: str = None,
-        required: bool = None,
         default: any = None,
+        required: bool = None,
+        cache_type: cache.CacheEntryType = None,
+        change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[str]:
         secret = os.environ.get(env) if env is not None else None
+        cache_source = cache.CacheEntrySource.ENV
+        cache_key = env
 
         if secret is None and secretsmanager is not None:
             try:
-                secret = self.get_secret(secretsmanager)
+                secret = self.get_secretsmanager_secret(secretsmanager)
+                cache_source = cache.CacheEntrySource.SECRETS_MANAGER
+                cache_key = secretsmanager
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     secret = None
@@ -119,19 +126,64 @@ class Config:
             except Exception as e:
                 if not required or default is not None:
                     secret = default
+                    cache_source = cache.CacheEntrySource.DEFAULT
                 else:
                     raise e
 
         if secret is None and default is not None:
             secret = default
+            cache_source = cache.CacheEntrySource.DEFAULT
 
         if secret is None and required:
             if self.not_found_fn is not None:
                 self.not_found_fn(locals())
+                return None
             else:
                 raise exceptions.RequiredSecretNotFoundException
 
+        self.cache.set(
+            env,
+            cache.CacheEntry(
+                cache_key,
+                cache_source,
+                cache_type,
+                secret,
+                required=required,
+                change_callback_fn=change_callback_fn,
+            ),
+        )
         return secret
+
+    def write(
+        self,
+        value: any,
+        env: str = None,
+        secretsmanager: str = None,
+    ) -> Optional[any]:
+        if value is None:
+            raise exceptions.SecretValueNoneException
+
+        if env is not None:
+            os.environ[env] = value
+
+        if secretsmanager is not None:
+            secretsmanager_client = self.get_secretsmanager()
+            secretsmanager_client.update_secret(
+                Name=self.get_secretsmanager_key(secretsmanager),
+                SecretString=value,
+            )
+
+        cached_entry = self.cache.get(key = env if env is not None else secretsmanager)
+        if cached_entry is None:
+            raise exceptions.SecretNotCachedException
+
+        if value != cached_entry.value:
+            cached_entry.value = value
+            self.cache.set(key = env if env is not None else secretsmanager, value = cached_entry)
+            if cached_entry.change_callback_fn is not None:
+                cached_entry.change_callback_fn(locals())
+
+        return value
 
     def string(
         self,
@@ -139,9 +191,15 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: str = None,
+        change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[str]:
         return self.get(
-            env=env, secretsmanager=secretsmanager, required=required, default=default
+            env=env,
+            secretsmanager=secretsmanager,
+            required=required,
+            default=default,
+            cache_type=cache.CacheEntryType.STRING,
+            change_callback_fn=change_callback_fn,
         )
 
     def integer(
@@ -150,12 +208,15 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: int = None,
+        change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[int]:
         val = self.get(
             env=env,
             secretsmanager=secretsmanager,
             required=required,
             default=default,
+            cache_type=cache.CacheEntryType.INTEGER,
+            change_callback_fn=change_callback_fn,
         )
         return int(val) if val is not None else None
 
@@ -165,12 +226,15 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: float = None,
+        change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[float]:
         val = self.get(
             env=env,
             secretsmanager=secretsmanager,
             required=required,
             default=default,
+            cache_type=cache.CacheEntryType.FLOAT,
+            change_callback_fn=change_callback_fn,
         )
         return float(val) if val is not None else None
 
@@ -180,12 +244,15 @@ class Config:
         secretsmanager: str = None,
         required: bool = None,
         default: bool = None,
+        change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[bool]:
         val = self.get(
             env=env,
             secretsmanager=secretsmanager,
             required=required,
             default=default,
+            cache_type=cache.CacheEntryType.BOOLEAN,
+            change_callback_fn=change_callback_fn,
         )
         return (
             (val if type(val) == bool else val.lower() == "true")

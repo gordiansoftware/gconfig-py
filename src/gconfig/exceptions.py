@@ -50,3 +50,15 @@ class RequiredSecretNotFoundException(KeyError):
     """Raised when a required secret is not found in the environment variables or Secrets Manager."""
 
     pass
+
+
+class SecretValueNoneException(ValueError):
+    """Raised when a secret value is None."""
+
+    pass
+
+
+class SecretNotCachedException(ValueError):
+    """Raised when a secret is not cached."""
+
+    pass
