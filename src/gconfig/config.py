@@ -200,7 +200,7 @@ class Config:
                 if entry is not None:
                     self.cache_secretsmanager.set(
                         cache.CacheEntry(
-                            env,
+                            secretsmanager,
                             value,
                             change_callback_fn=entry.change_callback_fn,
                         ),
