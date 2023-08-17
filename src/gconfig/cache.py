@@ -3,19 +3,6 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 
-class CacheEntrySource(Enum):
-    ENV = "ENV"
-    SECRETSMANAGER = "SECRETSMANAGER"
-    DEFAULT = "DEFAULT"
-
-
-class CacheEntryType(Enum):
-    STRING = str
-    INTEGER = int
-    FLOAT = float
-    BOOLEAN = bool
-
-
 class CacheEntry:
     def __init__(
         self,
