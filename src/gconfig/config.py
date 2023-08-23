@@ -2,7 +2,7 @@ import os, boto3
 from typing import Optional, Callable, Dict
 from botocore.exceptions import ClientError
 
-from . import exceptions, cache
+from . import exceptions, cache, parse
 
 
 class Config:
@@ -105,11 +105,19 @@ class Config:
         secretsmanager_client = self.get_secretsmanager()
         secretsmanager_client.put_secret_value(
             SecretId=self.get_secretsmanager_key(secret_id),
-            SecretString=secret,
+            SecretString=parse.parse_entry(str, secret),
+        )
+
+    def create_secretsmanager_secret(self, secret_id: str, secret: str) -> None:
+        secretsmanager_client = self.get_secretsmanager()
+        secretsmanager_client.create_secret(
+            Name=self.get_secretsmanager_key(secret_id),
+            SecretString=parse.parse_entry(str, secret),
         )
 
     def get(
         self,
+        typ: type,
         env: str = None,
         secretsmanager: str = None,
         default: any = None,
@@ -120,6 +128,7 @@ class Config:
         if secret is not None:
             self.cache_env.set(
                 cache.CacheEntry(
+                    typ,
                     env,
                     secret,
                     change_callback_fn=change_callback_fn,
@@ -131,6 +140,7 @@ class Config:
                 secret = self.get_secretsmanager_secret(secretsmanager)
                 self.cache_secretsmanager.set(
                     cache.CacheEntry(
+                        typ,
                         secretsmanager,
                         secret,
                         change_callback_fn=change_callback_fn,
@@ -161,7 +171,7 @@ class Config:
 
     def write(
         self,
-        value: any,
+        value: str,
         env: str = None,
         secretsmanager: str = None,
     ) -> None:
@@ -170,19 +180,22 @@ class Config:
 
         if env is not None:
             if os.environ.get(env) != value:
-                os.environ[env] = value
+                os.environ[env] = parse.parse_entry(str, value)
 
                 entry = self.cache_env.get(env)
                 if entry is not None:
                     self.cache_env.set(
                         cache.CacheEntry(
+                            entry.type,
                             env,
                             value,
                             change_callback_fn=entry.change_callback_fn,
                         ),
                     )
                     if entry.change_callback_fn is not None:
-                        entry.change_callback_fn(locals())
+                        entry.change_callback_fn(
+                            {**locals(), "value": parse.parse_entry(entry.type, value)}
+                        )
 
         if secretsmanager is not None:
             try:
@@ -193,20 +206,28 @@ class Config:
                 else:
                     raise e
 
-            if secret != value:
+            if secret is None:
+                self.secretsmanager_client.create_secret(
+                    Name=self.get_secretsmanager_key(secretsmanager),
+                    SecretString=parse.parse_entry(str, value),
+                )
+            elif secret != value:
                 self.update_secretsmanager_secret(secretsmanager, value)
 
                 entry = self.cache_secretsmanager.get(env)
                 if entry is not None:
                     self.cache_secretsmanager.set(
                         cache.CacheEntry(
+                            entry.type,
                             secretsmanager,
                             value,
                             change_callback_fn=entry.change_callback_fn,
                         ),
                     )
                     if entry.change_callback_fn is not None:
-                        entry.change_callback_fn(locals())
+                        entry.change_callback_fn(
+                            {**locals(), "value": parse.parse_entry(entry.type, value)}
+                        )
 
     def string(
         self,
@@ -216,12 +237,16 @@ class Config:
         default: str = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[str]:
-        return self.get(
-            env=env,
-            secretsmanager=secretsmanager,
-            required=required,
-            default=default,
-            change_callback_fn=change_callback_fn,
+        return parse.parse_entry(
+            str,
+            self.get(
+                str,
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+                change_callback_fn=change_callback_fn,
+            ),
         )
 
     def integer(
@@ -232,14 +257,17 @@ class Config:
         default: int = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[int]:
-        val = self.get(
-            env=env,
-            secretsmanager=secretsmanager,
-            required=required,
-            default=default,
-            change_callback_fn=change_callback_fn,
+        return parse.parse_entry(
+            int,
+            self.get(
+                int,
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+                change_callback_fn=change_callback_fn,
+            ),
         )
-        return int(val) if val is not None else None
 
     def float(
         self,
@@ -249,14 +277,17 @@ class Config:
         default: float = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[float]:
-        val = self.get(
-            env=env,
-            secretsmanager=secretsmanager,
-            required=required,
-            default=default,
-            change_callback_fn=change_callback_fn,
+        return parse.parse_entry(
+            float,
+            self.get(
+                float,
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+                change_callback_fn=change_callback_fn,
+            ),
         )
-        return float(val) if val is not None else None
 
     def boolean(
         self,
@@ -266,15 +297,14 @@ class Config:
         default: bool = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> Optional[bool]:
-        val = self.get(
-            env=env,
-            secretsmanager=secretsmanager,
-            required=required,
-            default=default,
-            change_callback_fn=change_callback_fn,
-        )
-        return (
-            (val if type(val) == bool else val.lower() == "true")
-            if val is not None
-            else None
+        return parse.parse_entry(
+            bool,
+            self.get(
+                bool,
+                env=env,
+                secretsmanager=secretsmanager,
+                required=required,
+                default=default,
+                change_callback_fn=change_callback_fn,
+            ),
         )

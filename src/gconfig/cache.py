@@ -6,10 +6,12 @@ from typing import Any, Callable, Optional
 class CacheEntry:
     def __init__(
         self,
+        typ: type,
         key: str,
         value: Any,
         change_callback_fn: Optional[Callable[[Any], None]] = None,
     ) -> None:
+        self.type = typ
         self.key = key
         self.value = value
         self.change_callback_fn = change_callback_fn
