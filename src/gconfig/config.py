@@ -194,7 +194,7 @@ class Config:
                     )
                     if entry.change_callback_fn is not None:
                         entry.change_callback_fn(
-                            {**locals(), "value": parse.parse_entry(entry.type, value)}
+                            args={**locals(), "value": parse.parse_entry(entry.type, value)}
                         )
 
         if secretsmanager is not None:
@@ -226,7 +226,7 @@ class Config:
                     )
                     if entry.change_callback_fn is not None:
                         entry.change_callback_fn(
-                            {**locals(), "value": parse.parse_entry(entry.type, value)}
+                            args={**locals(), "value": parse.parse_entry(entry.type, value)}
                         )
 
     def string(
