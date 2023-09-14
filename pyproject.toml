@@ -1,6 +1,6 @@
 [project]
 name = "gconfig"
-version = "0.1.13"
+version = "0.1.14"
 description = "Gordian global config library for Python"
 license = { file = "LICENSE" }
 requires-python = ">=2.7"
