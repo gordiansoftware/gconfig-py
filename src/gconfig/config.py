@@ -315,5 +315,3 @@ class Config:
                 change_callback_fn=change_callback_fn,
             ),
         )
-            ),
-        )
