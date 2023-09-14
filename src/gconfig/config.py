@@ -87,6 +87,11 @@ class Config:
             # session token must be set now.
             # if aws_session_token is None:
                 # raise exceptions.AWSMissingSessionTokenException
+            debug("--- getting boto3 session ---")
+            debug(f"aws_access_key_id: {aws_access_key_id}")
+            debug(f"aws_secret_access_key: {aws_secret_access_key}")
+            debug(f"aws_session_token: {aws_session_token}")
+            debug(f"region_name: {region_name}")
 
             session = boto3.Session(
                 aws_access_key_id=aws_access_key_id,
