@@ -7,6 +7,9 @@ from botocore.exceptions import ClientError
 from . import cache, exceptions, parse
 
 
+def debug(*args, **kwargs):
+    print(*args, **kwargs)
+
 class Config:
     def __init__(
         self,
@@ -23,6 +26,7 @@ class Config:
 
     # Secrets Manager
     def get_secretsmanager(self) -> boto3.client:
+        debug("--- getting secretsmanager client ---")
         if self.secretsmanager_client is None:
             aws_access_key_id = os.environ.get(f"{self.aws_prefix}AWS_ACCESS_KEY_ID")
             aws_secret_access_key = os.environ.get(
