@@ -34,8 +34,8 @@ class Config:
             )
             region_name = os.environ.get(f"{self.aws_prefix}AWS_REGION")
 
-            if aws_access_key_id is None:
-                raise exceptions.AWSMissingAccessKeyIdException
+            # if aws_access_key_id is None:
+                # raise exceptions.AWSMissingAccessKeyIdException
 
             # if aws_secret_access_key is None:
                 # raise exceptions.AWSMissingSecretAccessKeyException
