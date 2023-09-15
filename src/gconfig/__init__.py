@@ -9,7 +9,7 @@ from .exceptions import (AWSInvalidCredentialsException,
                          AWSMissingSessionTokenException)
 from .parse import parse_entry
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = [
     'AWSInvalidCredentialsException',
     'AWSInvalidSessionException',
