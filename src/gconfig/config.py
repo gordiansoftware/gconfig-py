@@ -49,16 +49,19 @@ class Config:
 
                 self.aws_role_arn = aws_role_arn
                 self.aws_role_session_name = aws_role_session_name
+
                 session = boto3.Session(
                     aws_access_key_id=aws_access_key_id,
                     aws_secret_access_key=aws_secret_access_key,
                 )
+
                 sts = session.client("sts")
                 assumed_role_object = sts.assume_role(
                     RoleArn=self.aws_role_arn,
                     RoleSessionName=self.aws_role_session_name,
                 )
                 credentials = assumed_role_object.get("Credentials")
+
                 # Override the credentials with the assumed role credentials.
                 aws_access_key_id = credentials.get("AccessKeyId")
                 aws_secret_access_key = credentials.get("SecretAccessKey")
