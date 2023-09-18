@@ -30,59 +30,47 @@ class Config:
             )
             region_name = os.environ.get(f"{self.aws_prefix}AWS_REGION")
 
-            # if aws_access_key_id is None:
-                # raise exceptions.AWSMissingAccessKeyIdException
-
-            # if aws_secret_access_key is None:
-                # raise exceptions.AWSMissingSecretAccessKeyException
-
-            # if region_name is None:
-                # raise exceptions.AWSMissingRegionException
-
             # AWS_SESSION_TOKEN is optional, if not provided, assume role will be used.
             aws_session_token = os.environ.get(f"{self.aws_prefix}AWS_SESSION_TOKEN")
 
-            # If AWS_SESSION_TOKEN is not provided, assume role.
-            if aws_session_token is None:
+            # Assume role IF:
+            #   AWS_SESSION_TOKEN is not provided AND
+            #   AWS_ACCESS_KEY_ID is provided AND
+            #   AWS_SECRET_ACCESS_KEY is provided
+            should_assume_role = aws_session_token is None and (
+                aws_access_key_id is not None and aws_secret_access_key is not None
+            )
+
+            if should_assume_role:
                 aws_role_arn = os.environ.get(f"{self.aws_prefix}AWS_ROLE_ARN", None)
                 aws_role_session_name = os.environ.get(
                     f"{self.aws_prefix}AWS_ROLE_SESSION_NAME", None
                 )
 
-                # if aws_role_arn is None:
-                    # raise exceptions.AWSMissingRoleARNException
-
-                # if aws_role_session_name is None:
-                    # raise exceptions.AWSMissingRoleSessionNameException
-
                 self.aws_role_arn = aws_role_arn
                 self.aws_role_session_name = aws_role_session_name
                 
-                if aws_access_key_id and aws_secret_access_key:
-                    session = boto3.Session(
-                        aws_access_key_id=aws_access_key_id,
-                        aws_secret_access_key=aws_secret_access_key,
-                    )
+                session = boto3.Session(
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                )
     
-                    sts = session.client("sts")
-                    assumed_role_object = sts.assume_role(
-                        RoleArn=self.aws_role_arn,
-                        RoleSessionName=self.aws_role_session_name,
-                    )
-                    credentials = assumed_role_object.get("Credentials")
+                sts = session.client("sts")
+                assumed_role_object = sts.assume_role(
+                    RoleArn=self.aws_role_arn,
+                    RoleSessionName=self.aws_role_session_name,
+                )
+                credentials = assumed_role_object.get("Credentials")
     
-                    # Override the credentials with the assumed role credentials.
-                    aws_access_key_id = credentials.get("AccessKeyId")
-                    aws_secret_access_key = credentials.get("SecretAccessKey")
-                    aws_session_token = credentials.get("SessionToken")
-                else:
-                    aws_access_key_id = None
-                    aws_secret_access_key = None
-                    aws_session_token = None
+                # Override the credentials with the assumed role credentials.
+                aws_access_key_id = credentials.get("AccessKeyId")
+                aws_secret_access_key = credentials.get("SecretAccessKey")
+                aws_session_token = credentials.get("SessionToken")
+            else:
+                aws_access_key_id = None
+                aws_secret_access_key = None
+                aws_session_token = None
 
-            # session token must be set now.
-            # if aws_session_token is None:
-                # raise exceptions.AWSMissingSessionTokenException
 
             session = boto3.Session(
                 aws_access_key_id=aws_access_key_id,
