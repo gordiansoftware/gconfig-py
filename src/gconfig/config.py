@@ -72,6 +72,16 @@ class Config:
                 aws_session_token = None
 
 
+            # If the kwargs provided to Session are None
+            # we will use the default credentials chain.
+            # This will use boto3's default credential chain
+            # which includes environment variables, config files, etc.
+            # Specifically when running in the AWS environment,
+            # the library knows how to pull credentials dynamically.
+            # This behavior was manually tested and validated in an ECS container.
+            # If this happens, it is up to the user to ensure the role which is
+            # used to run the container has the appropriate permissions to access
+            # the secrets manager secrets.
             session = boto3.Session(
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key,
