@@ -23,6 +23,8 @@ class Config:
 
     # Secrets Manager
     def get_secretsmanager(self) -> boto3.client:
+        # TODO: add support for checking if the client session is still valid.
+        
         if self.secretsmanager_client is None:
             aws_access_key_id = os.environ.get(f"{self.aws_prefix}AWS_ACCESS_KEY_ID")
             aws_secret_access_key = os.environ.get(
@@ -66,11 +68,19 @@ class Config:
                 aws_access_key_id = credentials.get("AccessKeyId")
                 aws_secret_access_key = credentials.get("SecretAccessKey")
                 aws_session_token = credentials.get("SessionToken")
-            else:
-                aws_access_key_id = None
-                aws_secret_access_key = None
-                aws_session_token = None
 
+            # AWS credentials are expected to be present at this point.
+            if aws_access_key_id is None:
+                raise exceptions.AWSMissingAccessKeyIdException
+
+            if aws_secret_access_key is None:
+                raise exceptions.AWSMissingSecretAccessKeyException
+
+            if aws_session_token is None:
+                raise exceptions.AWSMissingSessionTokenException
+
+            if region_name is None:
+                raise exceptions.AWSMissingRegionException
 
             # If the kwargs provided to Session are None
             # we will use the default credentials chain.
