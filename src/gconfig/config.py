@@ -104,29 +104,30 @@ class Config:
 
         return self.secretsmanager_client
 
-    def get_secretsmanager_key(self, secret_id) -> str:
-        if self.secretsmanager_prefix is not None:
-            secret_id = f"{self.secretsmanager_prefix}/{secret_id}"
+    def get_secretsmanager_key(self, secret_id, secretsmanager_prefix: str = None) -> str:
+        secretsmanager_prefix = secretsmanager_prefix or self.secretsmanager_prefix
+        if secretsmanager_prefix is not None:
+            secret_id = f"{secretsmanager_prefix}/{secret_id}"
         return secret_id
 
-    def get_secretsmanager_secret(self, secret_id: str) -> str:
+    def get_secretsmanager_secret(self, secret_id: str, secretsmanager_prefix: str = None) -> str:
         secretsmanager_client = self.get_secretsmanager()
         response = secretsmanager_client.get_secret_value(
-            SecretId=self.get_secretsmanager_key(secret_id)
+            SecretId=self.get_secretsmanager_key(secret_id, secretsmanager_prefix=secretsmanager_prefix)
         )
         return response.get("SecretString")
 
-    def update_secretsmanager_secret(self, secret_id: str, secret: str) -> None:
+    def update_secretsmanager_secret(self, secret_id: str, secret: str, secretsmanager_prefix: str = None) -> None:
         secretsmanager_client = self.get_secretsmanager()
         secretsmanager_client.put_secret_value(
-            SecretId=self.get_secretsmanager_key(secret_id),
+            SecretId=self.get_secretsmanager_key(secret_id, secretsmanager_prefix=secretsmanager_prefix),
             SecretString=parse.parse_entry(str, secret),
         )
 
-    def create_secretsmanager_secret(self, secret_id: str, secret: str) -> None:
+    def create_secretsmanager_secret(self, secret_id: str, secret: str, secretsmanager_prefix: str = None) -> None:
         secretsmanager_client = self.get_secretsmanager()
         secretsmanager_client.create_secret(
-            Name=self.get_secretsmanager_key(secret_id),
+            Name=self.get_secretsmanager_key(secret_id, secretsmanager_prefix=secretsmanager_prefix),
             SecretString=parse.parse_entry(str, secret),
         )
 
@@ -138,6 +139,7 @@ class Config:
         default: any = None,
         required: bool = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        secretsmanager_prefix: str = None,
     ) -> Optional[str]:
         secret = os.environ.get(env) if env is not None else None
         if secret is not None:
@@ -152,7 +154,7 @@ class Config:
 
         if secret is None and secretsmanager is not None:
             try:
-                secret = self.get_secretsmanager_secret(secretsmanager)
+                secret = self.get_secretsmanager_secret(secretsmanager, secretsmanager_prefix=secretsmanager_prefix)
                 self.cache_secretsmanager.set(
                     cache.CacheEntry(
                         typ,
@@ -189,6 +191,7 @@ class Config:
         value: str,
         env: str = None,
         secretsmanager: str = None,
+        secretsmanager_prefix: str = None,
     ) -> None:
         if value is None:
             raise exceptions.SecretValueNoneException
@@ -214,7 +217,7 @@ class Config:
 
         if secretsmanager is not None:
             try:
-                secret = self.get_secretsmanager_secret(secretsmanager)
+                secret = self.get_secretsmanager_secret(secretsmanager, secretsmanager_prefix=secretsmanager_prefix)
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     secret = None
@@ -222,12 +225,9 @@ class Config:
                     raise e
 
             if secret is None:
-                self.secretsmanager_client.create_secret(
-                    Name=self.get_secretsmanager_key(secretsmanager),
-                    SecretString=parse.parse_entry(str, value),
-                )
+                self.create_secretsmanager_secret(secretsmanager, value, secretsmanager_prefix=secretsmanager_prefix)
             elif secret != value:
-                self.update_secretsmanager_secret(secretsmanager, value)
+                self.update_secretsmanager_secret(secretsmanager, value, secretsmanager_prefix=secretsmanager_prefix)
 
                 entry = self.cache_secretsmanager.get(env)
                 if entry is not None:
@@ -248,6 +248,7 @@ class Config:
         self,
         env: str = None,
         secretsmanager: str = None,
+        secretsmanager_prefix: str = None,
         required: bool = None,
         default: str = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
@@ -258,6 +259,7 @@ class Config:
                 str,
                 env=env,
                 secretsmanager=secretsmanager,
+                secretsmanager_prefix=secretsmanager_prefix,
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
@@ -268,6 +270,7 @@ class Config:
         self,
         env: str = None,
         secretsmanager: str = None,
+        secretsmanager_prefix: str = None,
         required: bool = None,
         default: int = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
@@ -278,6 +281,7 @@ class Config:
                 int,
                 env=env,
                 secretsmanager=secretsmanager,
+                secretsmanager_prefix=secretsmanager_prefix,
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
@@ -288,6 +292,7 @@ class Config:
         self,
         env: str = None,
         secretsmanager: str = None,
+        secretsmanager_prefix: str = None,
         required: bool = None,
         default: float = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
@@ -298,6 +303,7 @@ class Config:
                 float,
                 env=env,
                 secretsmanager=secretsmanager,
+                secretsmanager_prefix=secretsmanager_prefix,
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
@@ -308,6 +314,7 @@ class Config:
         self,
         env: str = None,
         secretsmanager: str = None,
+        secretsmanager_prefix: str = None,
         required: bool = None,
         default: bool = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
@@ -318,6 +325,7 @@ class Config:
                 bool,
                 env=env,
                 secretsmanager=secretsmanager,
+                secretsmanager_prefix=secretsmanager_prefix,
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
