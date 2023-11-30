@@ -165,11 +165,6 @@ class Config:
                         change_callback_fn=change_callback_fn,
                     ),
                 )
-            except ClientError as e:
-                if e.response["Error"]["Code"] == "ResourceNotFoundException":
-                    secret = None
-                else:
-                    raise e
             except Exception as e:
                 if not required or default is not None:
                     secret = default
