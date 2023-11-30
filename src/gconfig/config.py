@@ -11,10 +11,12 @@ class Config:
     def __init__(
         self,
         aws_prefix: str = "",
+        aws_session_required: bool = False,
         secretsmanager_prefix: str = None,
         not_found_fn: Optional[Callable[[Dict[str, str]], None]] = None,
     ) -> None:
         self.aws_prefix = aws_prefix
+        self.aws_session_required = aws_session_required
         self.secretsmanager_client = None
         self.secretsmanager_prefix = secretsmanager_prefix
         self.not_found_fn = not_found_fn
@@ -70,16 +72,16 @@ class Config:
                 aws_session_token = credentials.get("SessionToken")
 
             # AWS credentials are expected to be present at this point.
-            if aws_access_key_id is None:
+            if self.aws_session_required and aws_access_key_id is None:
                 raise exceptions.AWSMissingAccessKeyIdException
 
-            if aws_secret_access_key is None:
+            if self.aws_session_required and aws_secret_access_key is None:
                 raise exceptions.AWSMissingSecretAccessKeyException
 
-            if aws_session_token is None:
+            if self.aws_session_required and aws_session_token is None:
                 raise exceptions.AWSMissingSessionTokenException
 
-            if region_name is None:
+            if self.aws_session_required and region_name is None:
                 raise exceptions.AWSMissingRegionException
 
             # If the kwargs provided to Session are None
