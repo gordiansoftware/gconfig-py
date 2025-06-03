@@ -1,7 +1,8 @@
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
+T = TypeVar("T")
 
-def parse_entry(typ: type, val: Any) -> Optional[Any]:
+def parse_entry(typ: type[T], val: Any) -> Optional[T]:
     if typ == str:
         return str(val) if val is not None else None
     elif typ == int:
