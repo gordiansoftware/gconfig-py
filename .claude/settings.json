@@ -1,4 +1,17 @@
 {
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "deep-plan@deep-plan": true,
+    "ralph-loop@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "differential-review@trailofbits-skills": true,
+    "sharp-edges@trailofbits-skills": true,
+    "modern-python@trailofbits-skills": true,
+    "pytest-assistant@python-backend-plugins": true,
+    "python-typing@python-backend-plugins": true,
+    "ruff-lint@python-backend-plugins": true,
+    "clean-code@python-backend-plugins": true
+  },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
