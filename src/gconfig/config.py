@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -14,12 +14,22 @@ class Config:
         aws_session_required: bool = False,
         secretsmanager_prefix: str = None,
         not_found_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        nexus_client: Optional[Any] = None,
     ) -> None:
         self.aws_prefix = aws_prefix
         self.aws_session_required = aws_session_required
         self.secretsmanager_client = None
         self.secretsmanager_prefix = secretsmanager_prefix
         self.not_found_fn = not_found_fn
+        self.nexus_client = nexus_client
+        # Break-glass rollback: keys listed here behave as if nexus= weren't
+        # passed. Read once at init — changing it requires a restart, which
+        # `heroku config:set` (and an ECS redeploy) already implies.
+        self.nexus_disabled_keys = frozenset(
+            key.strip()
+            for key in os.environ.get("GCONFIG_NEXUS_DISABLED_KEYS", "").split(",")
+            if key.strip()
+        )
         self.cache_env = cache.Cache()
         self.cache_secretsmanager = cache.Cache()
 
@@ -142,7 +152,14 @@ class Config:
         required: bool = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
         secretsmanager_prefix: str = None,
+        nexus: str = None,
     ) -> Optional[str]:
+        """Read order: env -> nexus -> secretsmanager -> default.
+
+        Nexus errors fall through silently to the next source. Keys listed in
+        GCONFIG_NEXUS_DISABLED_KEYS, or any nexus= read without a nexus_client
+        injected at construction, skip the nexus step entirely.
+        """
         secret = os.environ.get(env) if env is not None else None
         if secret is not None:
             self.cache_env.set(
@@ -153,6 +170,24 @@ class Config:
                     change_callback_fn=change_callback_fn,
                 ),
             )
+
+        if (
+            secret is None
+            and nexus is not None
+            and self.nexus_client is not None
+            and nexus not in self.nexus_disabled_keys
+        ):
+            # Nexus failures must never mask the remaining sources: in DUAL
+            # state Secrets Manager still gets its chance, and the terminal
+            # required-handling below raises if every source comes up empty.
+            try:
+                value = self.nexus_client.get(nexus)
+                # A SENSITIVE key read without read_sensitive permission comes
+                # back redacted, not as an error — never serve the placeholder.
+                if not value.is_redacted:
+                    secret = value.as_string()
+            except Exception:
+                secret = None
 
         if secret is None and secretsmanager is not None:
             try:
@@ -249,6 +284,7 @@ class Config:
         required: bool = None,
         default: str = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        nexus: str = None,
     ) -> Optional[str]:
         return parse.parse_entry(
             str,
@@ -260,6 +296,7 @@ class Config:
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
+                nexus=nexus,
             ),
         )
 
@@ -271,6 +308,7 @@ class Config:
         required: bool = None,
         default: int = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        nexus: str = None,
     ) -> Optional[int]:
         return parse.parse_entry(
             int,
@@ -282,6 +320,7 @@ class Config:
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
+                nexus=nexus,
             ),
         )
 
@@ -293,6 +332,7 @@ class Config:
         required: bool = None,
         default: float = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        nexus: str = None,
     ) -> Optional[float]:
         return parse.parse_entry(
             float,
@@ -304,6 +344,7 @@ class Config:
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
+                nexus=nexus,
             ),
         )
 
@@ -315,6 +356,7 @@ class Config:
         required: bool = None,
         default: bool = None,
         change_callback_fn: Optional[Callable[[Dict[str, str]], None]] = None,
+        nexus: str = None,
     ) -> Optional[bool]:
         return parse.parse_entry(
             bool,
@@ -326,5 +368,6 @@ class Config:
                 required=required,
                 default=default,
                 change_callback_fn=change_callback_fn,
+                nexus=nexus,
             ),
         )
