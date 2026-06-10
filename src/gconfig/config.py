@@ -23,8 +23,7 @@ class Config:
         self.not_found_fn = not_found_fn
         self.nexus_client = nexus_client
         # Break-glass rollback: keys listed here behave as if nexus= weren't
-        # passed. Read once at init — changing it requires a restart, which
-        # `heroku config:set` (and an ECS redeploy) already implies.
+        # passed. Read once at init — changing requires a restart.
         self.nexus_disabled_keys = frozenset(
             key.strip()
             for key in os.environ.get("GCONFIG_NEXUS_DISABLED_KEYS", "").split(",")
@@ -154,12 +153,6 @@ class Config:
         secretsmanager_prefix: str = None,
         nexus: str = None,
     ) -> Optional[str]:
-        """Read order: env -> nexus -> secretsmanager -> default.
-
-        Nexus errors fall through silently to the next source. Keys listed in
-        GCONFIG_NEXUS_DISABLED_KEYS, or any nexus= read without a nexus_client
-        injected at construction, skip the nexus step entirely.
-        """
         secret = os.environ.get(env) if env is not None else None
         if secret is not None:
             self.cache_env.set(
@@ -177,9 +170,6 @@ class Config:
             and self.nexus_client is not None
             and nexus not in self.nexus_disabled_keys
         ):
-            # Nexus failures must never mask the remaining sources: in DUAL
-            # state Secrets Manager still gets its chance, and the terminal
-            # required-handling below raises if every source comes up empty.
             try:
                 value = self.nexus_client.get(nexus)
                 # A SENSITIVE key read without read_sensitive permission comes

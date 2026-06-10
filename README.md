@@ -4,9 +4,7 @@ gconfig is the shared library used by Gordian to configure applications.
 It supports environment variables, NexusConfigService, AWS Secret Manager,
 defaults etc.
 
-Read order: `env` → `nexus` → `secretsmanager` → `default`. Each source is
-only consulted if the previous one produced nothing; nexus errors fall
-through silently to the next source.
+Read order: `env` → `nexus` → `secretsmanager` → `default`. Each source is only consulted if the previous one produced nothing.
 
 ```
 from gconfig import Config
