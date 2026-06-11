@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Callable, Dict, Optional
 
@@ -5,6 +6,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from . import cache, exceptions, parse
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -174,10 +177,18 @@ class Config:
                 value = self.nexus_client.get(nexus)
                 # A SENSITIVE key read without read_sensitive permission comes
                 # back redacted, not as an error — never serve the placeholder.
-                if not value.is_redacted:
+                if value.is_redacted:
+                    logger.debug("nexus read redacted; falling through: key=%s", nexus)
+                else:
                     secret = value.as_string()
-            except Exception:
+                    logger.debug("nexus hit: key=%s", nexus)
+            except Exception as e:
                 secret = None
+                logger.warning(
+                    "nexus read failed; falling through: key=%s error=%s",
+                    nexus,
+                    type(e).__name__,
+                )
 
         if secret is None and secretsmanager is not None:
             try:

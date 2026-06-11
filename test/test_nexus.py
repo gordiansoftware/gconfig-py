@@ -148,5 +148,44 @@ class NexusSourceTests(unittest.TestCase):
                 cfg.get(str, nexus="TEST_KEY", required=True)
 
 
+class NexusObservabilityTests(unittest.TestCase):
+    """Liveness logging for the nexus source."""
+
+    def test_nexus_hit_logs_debug(self):
+        nexus = FakeNexusClient(values={"TEST_KEY": FakeConfigValue("from-nexus")})
+        with mock.patch.dict(os.environ, {}, clear=True):
+            cfg = Config(nexus_client=nexus)
+            with self.assertLogs("gconfig", level="DEBUG") as cm:
+                result = cfg.get(str, nexus="TEST_KEY")
+        self.assertEqual(result, "from-nexus")
+        self.assertTrue(any("nexus hit" in m for m in cm.output))
+
+    def test_nexus_error_logs_warning_with_class_name(self):
+        nexus = FakeNexusClient(error=RuntimeError("boom"))
+        sm = mock.MagicMock(return_value="from-sm")
+        with mock.patch.dict(os.environ, {}, clear=True):
+            cfg = Config(nexus_client=nexus)
+            with mock.patch.object(cfg, "get_secretsmanager_secret", sm):
+                with self.assertLogs("gconfig", level="WARNING") as cm:
+                    result = cfg.get(str, secretsmanager="TEST_KEY", nexus="TEST_KEY")
+        self.assertEqual(result, "from-sm")
+        joined = "\n".join(cm.output)
+        self.assertIn("nexus read failed", joined)
+        self.assertIn("RuntimeError", joined)
+
+    def test_nexus_redacted_logs_debug_and_falls_through(self):
+        nexus = FakeNexusClient(
+            values={"TEST_KEY": FakeConfigValue("<redacted>", redacted=True)}
+        )
+        sm = mock.MagicMock(return_value="from-sm")
+        with mock.patch.dict(os.environ, {}, clear=True):
+            cfg = Config(nexus_client=nexus)
+            with mock.patch.object(cfg, "get_secretsmanager_secret", sm):
+                with self.assertLogs("gconfig", level="DEBUG") as cm:
+                    result = cfg.get(str, secretsmanager="TEST_KEY", nexus="TEST_KEY")
+        self.assertEqual(result, "from-sm")
+        self.assertTrue(any("redacted" in m for m in cm.output))
+
+
 if __name__ == "__main__":
     unittest.main()
