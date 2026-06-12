@@ -27,6 +27,7 @@ class Config:
         self.nexus_client = nexus_client
         # Break-glass rollback: keys listed here behave as if nexus= weren't
         # passed. Read once at init — changing requires a restart.
+        # TODO: remove after the nexus migration cutover — DUAL-phase lever only.
         self.nexus_disabled_keys = frozenset(
             key.strip()
             for key in os.environ.get("GCONFIG_NEXUS_DISABLED_KEYS", "").split(",")
