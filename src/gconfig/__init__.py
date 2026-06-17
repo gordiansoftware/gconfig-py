@@ -1,3 +1,5 @@
+import logging
+
 from .cache import Cache, CacheEntry
 from .config import Config
 from .exceptions import (
@@ -11,6 +13,8 @@ from .exceptions import (
     AWSMissingSessionTokenException,
 )
 from .parse import parse_entry
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 __all__ = [
     "AWSInvalidCredentialsException",
@@ -27,4 +31,4 @@ __all__ = [
     "parse_entry",
 ]
 
-__version__ = "0.2.4"
+__version__ = "0.3.0"
